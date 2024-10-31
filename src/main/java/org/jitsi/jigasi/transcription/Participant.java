@@ -26,9 +26,14 @@ import org.jivesoftware.smack.packet.*;
 import org.jitsi.jigasi.stats.*;
 
 import javax.media.format.*;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.*;
 import java.util.*;
 import java.util.concurrent.*;
+
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 
 /**
  * This class describes a participant in a conference whose
@@ -39,8 +44,7 @@ import java.util.concurrent.*;
  * @author Boris Grozev
  */
 public class Participant
-    implements TranscriptionListener
-{
+        implements TranscriptionListener {
     /**
      * The logger of this class
      */
@@ -86,7 +90,7 @@ public class Participant
      * with the ID. The ID can be received by hasing the email with md5
      */
     private final static String GRAVARAR_URL_FORMAT
-        = "https://www.gravatar.com/avatar/%s?d=wavatar&size=200";
+            = "https://www.gravatar.com/avatar/%s?d=wavatar&size=200";
 
     /**
      * The standard url to a meeple avatar by using a random ID. Default usage
@@ -94,7 +98,7 @@ public class Participant
      * int he same meeple
      */
     private final static String MEEPLE_URL_FORMAT
-        = "https://abotars.jitsi.net/meeple/%s";
+            = "https://abotars.jitsi.net/meeple/%s";
 
     /**
      * The {@link Transcriber} which owns this {@link Participant}.
@@ -159,10 +163,9 @@ public class Participant
      * Create a participant with a given name and audio stream
      *
      * @param transcriber the transcriber which created this participant
-     * @param identifier the string which is used to identify this participant
+     * @param identifier  the string which is used to identify this participant
      */
-    Participant(Transcriber transcriber, String identifier)
-    {
+    Participant(Transcriber transcriber, String identifier) {
         this(transcriber, identifier, false);
     }
 
@@ -170,16 +173,14 @@ public class Participant
      * Create a participant with a given name and audio stream
      *
      * @param transcriber the transcriber which created this participant
-     * @param identifier the string which is used to identify this participant
+     * @param identifier  the string which is used to identify this participant
      */
-    Participant(Transcriber transcriber, String identifier, boolean filterAudio)
-    {
+    Participant(Transcriber transcriber, String identifier, boolean filterAudio) {
         this.transcriber = transcriber;
         this.identifier = identifier;
         this.transcriptionServiceName = transcriber.getTranscriptionService().getClass().getSimpleName();
 
-        if (filterAudio)
-        {
+        if (filterAudio) {
             silenceFilter = new SilenceFilter();
         }
     }
@@ -191,19 +192,16 @@ public class Participant
      * @return a {@code String} or {@code null} if this instance has not been
      * initialized enough to get a proper debug name(not joined any room yet).
      */
-    String getDebugName()
-    {
+    String getDebugName() {
         ChatRoomMember _chatMember = this.chatMember;
 
-        if (_chatMember == null)
-        {
+        if (_chatMember == null) {
             return null;
         }
 
         String roomId = chatMember.getChatRoom().getIdentifier();
 
-        if (roomId.contains("@"))
-        {
+        if (roomId.contains("@")) {
             roomId = roomId.substring(0, roomId.indexOf("@"));
         }
 
@@ -215,16 +213,13 @@ public class Participant
      * transcript (if a display name wasn't specifically set we use the id or
      * a default string).
      */
-    public String getName()
-    {
-        if (chatMember == null)
-        {
+    public String getName() {
+        if (chatMember == null) {
             return UNKNOWN_NAME;
         }
 
         String name = chatMember.getDisplayName();
-        if (name != null && !name.isEmpty())
-        {
+        if (name != null && !name.isEmpty()) {
             return name;
         }
 
@@ -233,16 +228,14 @@ public class Participant
 
     /**
      * Returns participant email if any.
+     *
      * @return participant email if any.
      */
-    public String getEmail()
-    {
-        if (chatMember == null)
-        {
+    public String getEmail() {
+        if (chatMember == null) {
             return null;
         }
-        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
-        {
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl)) {
             return null;
         }
 
@@ -252,54 +245,44 @@ public class Participant
     /**
      * @return the URL of the avatar of the participant, if one is set.
      */
-    public String getAvatarUrl()
-    {
-        if (chatMember == null)
-        {
+    public String getAvatarUrl() {
+        if (chatMember == null) {
             return null;
         }
-        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
-        {
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl)) {
             return null;
         }
 
         ChatRoomMemberJabberImpl memberJabber
-            = ((ChatRoomMemberJabberImpl) this.chatMember);
+                = ((ChatRoomMemberJabberImpl) this.chatMember);
 
         IdentityPacketExtension ipe = getIdentityExtensionOrNull(
-            memberJabber.getLastPresence());
+                memberJabber.getLastPresence());
 
         String url;
-        if (ipe != null && (url = ipe.getUserAvatarUrl()) != null)
-        {
+        if (ipe != null && (url = ipe.getUserAvatarUrl()) != null) {
             return url;
-        }
-        else if ((url = memberJabber.getAvatarUrl()) != null)
-        {
+        } else if ((url = memberJabber.getAvatarUrl()) != null) {
             return url;
         }
 
         String email;
-        if ((email = getEmail()) != null)
-        {
+        if ((email = getEmail()) != null) {
             return String.format(GRAVARAR_URL_FORMAT,
-                Util.stringToMD5hash(email));
+                    Util.stringToMD5hash(email));
         }
 
         // Create a nice looking meeple avatar when avatar-url nor email is set
         AvatarIdPacketExtension avatarIdExtension = getAvatarIdExtensionOrNull(
-            memberJabber.getLastPresence());
+                memberJabber.getLastPresence());
         String avatarId;
         if (avatarIdExtension != null &&
-            (avatarId = avatarIdExtension.getAvatarId()) != null)
-        {
+                (avatarId = avatarIdExtension.getAvatarId()) != null) {
             return String.format(MEEPLE_URL_FORMAT,
-                Util.stringToMD5hash(avatarId));
-        }
-        else
-        {
+                    Util.stringToMD5hash(avatarId));
+        } else {
             return String.format(MEEPLE_URL_FORMAT,
-                Util.stringToMD5hash(identifier));
+                    Util.stringToMD5hash(identifier));
         }
     }
 
@@ -308,20 +291,18 @@ public class Participant
      *
      * @return the user-name or null
      */
-    public String getIdentityUserName()
-    {
-        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
-        {
+    public String getIdentityUserName() {
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl)) {
             return null;
         }
 
         IdentityPacketExtension ipe
-            = getIdentityExtensionOrNull(
+                = getIdentityExtensionOrNull(
                 ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getUserName():
-            null;
+                ipe.getUserName() :
+                null;
     }
 
     /**
@@ -329,20 +310,18 @@ public class Participant
      *
      * @return the user id or null
      */
-    public String getIdentityUserId()
-    {
-        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
-        {
+    public String getIdentityUserId() {
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl)) {
             return null;
         }
 
         IdentityPacketExtension ipe
-            = getIdentityExtensionOrNull(
+                = getIdentityExtensionOrNull(
                 ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getUserId():
-            null;
+                ipe.getUserId() :
+                null;
     }
 
     /**
@@ -351,10 +330,8 @@ public class Participant
      *
      * @return the key of the Hashmap
      */
-    public String getLanguageKey()
-    {
-        if (transcriber.getTranscriptionService().supportsLanguageRouting())
-        {
+    public String getLanguageKey() {
+        if (transcriber.getTranscriptionService().supportsLanguageRouting()) {
             return this.getSourceLanguage();
         }
         return "global";
@@ -365,20 +342,18 @@ public class Participant
      *
      * @return the group id or null
      */
-    public String getIdentityGroupId()
-    {
-        if (!(chatMember instanceof ChatRoomMemberJabberImpl))
-        {
+    public String getIdentityGroupId() {
+        if (!(chatMember instanceof ChatRoomMemberJabberImpl)) {
             return null;
         }
 
         IdentityPacketExtension ipe
-            = getIdentityExtensionOrNull(
+                = getIdentityExtensionOrNull(
                 ((ChatRoomMemberJabberImpl) chatMember).getLastPresence());
 
         return ipe != null ?
-            ipe.getGroupId():
-            null;
+                ipe.getGroupId() :
+                null;
     }
 
     /**
@@ -388,8 +363,7 @@ public class Participant
      * @param p the presence
      * @return the {@link IdentityPacketExtension} or null
      */
-    private IdentityPacketExtension getIdentityExtensionOrNull(Presence p)
-    {
+    private IdentityPacketExtension getIdentityExtensionOrNull(Presence p) {
         return p.getExtension(IdentityPacketExtension.class);
     }
 
@@ -400,14 +374,12 @@ public class Participant
      * @param p the presence
      * @return the {@link AvatarIdPacketExtension} or null
      */
-    private AvatarIdPacketExtension getAvatarIdExtensionOrNull(Presence p)
-    {
+    private AvatarIdPacketExtension getAvatarIdExtensionOrNull(Presence p) {
         return p.getExtension(AvatarIdPacketExtension.class);
     }
 
     private TranscriptionRequestExtension
-                getTranscriptionRequestExtensionOrNull(Presence p)
-    {
+    getTranscriptionRequestExtensionOrNull(Presence p) {
         return p != null
                 ? p.getExtension(TranscriptionRequestExtension.class)
                 : null;
@@ -418,10 +390,8 @@ public class Participant
      *
      * @return the srrc
      */
-    public long getSSRC()
-    {
-        if (confMember == null)
-        {
+    public long getSSRC() {
+        if (confMember == null) {
             return DEFAULT_UNKNOWN_AUDIO_SSRC;
         }
         return getConferenceMemberAudioSSRC(confMember);
@@ -433,11 +403,10 @@ public class Participant
      *
      * @return source language code
      */
-    public String getSourceLanguage()
-    {
+    public String getSourceLanguage() {
         return sourceLanguageLocale == null ?
-            null :
-            sourceLanguageLocale.getLanguage();
+                null :
+                sourceLanguageLocale.getLanguage();
     }
 
     /**
@@ -445,8 +414,7 @@ public class Participant
      *
      * @return language code for translation
      */
-    public String getTranslationLanguage()
-    {
+    public String getTranslationLanguage() {
         return translationLanguage;
     }
 
@@ -455,14 +423,10 @@ public class Participant
      *
      * @param language code for transcription
      */
-    public void setSourceLanguage(String language)
-    {
-        if (language == null)
-        {
+    public void setSourceLanguage(String language) {
+        if (language == null) {
             sourceLanguageLocale = null;
-        }
-        else
-        {
+        } else {
             sourceLanguageLocale = Locale.forLanguageTag(language);
         }
     }
@@ -472,8 +436,7 @@ public class Participant
      *
      * @param language code for translation
      */
-    public void setTranslationLanguage(String language)
-    {
+    public void setTranslationLanguage(String language) {
         translationLanguage = language;
     }
 
@@ -482,8 +445,7 @@ public class Participant
      *
      * @param confMember the conference member
      */
-    public void setConfMember(ConferenceMember confMember)
-    {
+    public void setConfMember(ConferenceMember confMember) {
         this.confMember = confMember;
     }
 
@@ -492,8 +454,7 @@ public class Participant
      *
      * @param chatMember the chatroom member
      */
-    public void setChatMember(ChatRoomMember chatMember)
-    {
+    public void setChatMember(ChatRoomMember chatMember) {
         this.chatMember = chatMember;
     }
 
@@ -502,8 +463,7 @@ public class Participant
      *
      * @return the id
      */
-    public String getId()
-    {
+    public String getId() {
         return identifier;
     }
 
@@ -511,20 +471,17 @@ public class Participant
      * When a participant joined it accepts audio and will send it
      * to be transcribed
      */
-    void joined()
-    {
+    void joined() {
         TranscriptionService.StreamingRecognitionSession
                 session = sessions.getOrDefault(getLanguageKey(), null);
 
-        if (session != null && !session.ended())
-        {
+        if (session != null && !session.ended()) {
             return; // no need to create new session
         }
 
-        if (transcriber.getTranscriptionService().supportsStreamRecognition())
-        {
+        if (transcriber.getTranscriptionService().supportsStreamRecognition()) {
             session = transcriber.getTranscriptionService()
-                .initStreamingSession(this);
+                    .initStreamingSession(this);
             session.addTranscriptionListener(this);
             sessions.put(getLanguageKey(), session);
             isCompleted = false;
@@ -535,11 +492,9 @@ public class Participant
      * When a participant has left it does not accept audio and thus no new
      * results will come in
      */
-    public void left()
-    {
+    public void left() {
         TranscriptionService.StreamingRecognitionSession session = sessions.getOrDefault(getLanguageKey(), null);
-        if (session != null)
-        {
+        if (session != null) {
             session.end();
         }
     }
@@ -547,7 +502,7 @@ public class Participant
     /**
      * Give a packet of the audio of this participant such that it can be
      * buffered and sent to the transcription once enough has been stored
-     *
+     * <p>
      * Note: the thread on which this method is called has only a limited amount
      * of time until it is shutdown. Thus, we need to minimize the amount of
      * work we do on in this method (and the children this method calls).
@@ -557,28 +512,22 @@ public class Participant
      * @param buffer a buffer which is expected to contain a single packet
      *               of audio of this participant
      */
-    void giveBuffer(javax.media.Buffer buffer)
-    {
-        if (audioFormat == null)
-        {
+    void giveBuffer(javax.media.Buffer buffer) {
+        if (audioFormat == null) {
             audioFormat = (AudioFormat) buffer.getFormat();
         }
 
         byte[] audio = (byte[]) buffer.getData();
 
-        if (USE_LOCAL_BUFFER)
-        {
+        if (USE_LOCAL_BUFFER) {
             buffer(audio);
-        }
-        else
-        {
+        } else {
             sendRequest(audio);
         }
     }
 
     @Override
-    public void notify(TranscriptionResult result)
-    {
+    public void notify(TranscriptionResult result) {
         result.setParticipant(this);
         if (logger.isDebugEnabled())
             logger.debug(result);
@@ -586,15 +535,13 @@ public class Participant
     }
 
     @Override
-    public void completed()
-    {
+    public void completed() {
         isCompleted = true;
         transcriber.checkIfFinishedUp();
     }
 
     @Override
-    public void failed(FailureReason reason)
-    {
+    public void failed(FailureReason reason) {
         isCompleted = true;
         logger.error(getDebugName() + " transcription failed: " + reason);
         transcriber.stop(reason);
@@ -605,8 +552,7 @@ public class Participant
      *
      * @return true if completed transcribing, false otherwise
      */
-    public boolean isCompleted()
-    {
+    public boolean isCompleted() {
         return isCompleted;
     }
 
@@ -616,62 +562,47 @@ public class Participant
      *
      * @param audio the audio to buffer
      */
-    private void buffer(byte[] audio)
-    {
+    private void buffer(byte[] audio) {
         // note: the executorService is single-threaded and thus order
         //       is preserved, even though there are multiple participants.
         transcriber.executorService.execute(() ->
-           {
-               byte[] toBuffer;
-               if (silenceFilter != null)
-               {
-                   silenceFilter.giveSegment(audio);
-                   if (silenceFilter.shouldFilter())
-                   {
-                       return;
-                   }
-                   else if (silenceFilter.newSpeech())
-                   {
-                       // we need to cast here to keep compatability when moving between java8 and java11
-                       ((Buffer) buffer).clear();
-                       toBuffer = silenceFilter.getSpeechWindow();
-                   }
-                   else
-                   {
-                       toBuffer = audio;
-                   }
-               }
-               else
-               {
-                   toBuffer = audio;
-               }
+        {
+            byte[] toBuffer;
+            if (silenceFilter != null) {
+                silenceFilter.giveSegment(audio);
+                if (silenceFilter.shouldFilter()) {
+                    return;
+                } else if (silenceFilter.newSpeech()) {
+                    // we need to cast here to keep compatability when moving between java8 and java11
+                    ((Buffer) buffer).clear();
+                    toBuffer = silenceFilter.getSpeechWindow();
+                } else {
+                    toBuffer = audio;
+                }
+            } else {
+                toBuffer = audio;
+            }
 
-               try
-               {
-                   buffer.put(toBuffer);
-               }
-               catch (BufferOverflowException | ReadOnlyBufferException e)
-               {
-                   sendRequest(audio);
-               }
+            try {
+                buffer.put(toBuffer);
+            } catch (BufferOverflowException | ReadOnlyBufferException e) {
+                sendRequest(audio);
+            }
 
-               int spaceLeft = buffer.limit() - buffer.position();
-               if (spaceLeft < EXPECTED_AUDIO_LENGTH)
-               {
-                   sendRequest(buffer.array());
-                   // we need to cast here to keep compatability when moving between java8 and java11
-                   ((Buffer) buffer).clear();
-               }
-           });
+            int spaceLeft = buffer.limit() - buffer.position();
+            if (spaceLeft < EXPECTED_AUDIO_LENGTH) {
+                sendRequest(buffer.array());
+                // we need to cast here to keep compatability when moving between java8 and java11
+                ((Buffer) buffer).clear();
+            }
+        });
     }
 
-    private void incrementSentStats(int byteCount)
-    {
+    private void incrementSentStats(int byteCount) {
         int divider = EXPECTED_AUDIO_LENGTH;
 
         if (transcriptionServiceName.equals("WhisperTranscriptionService")
-                || transcriptionServiceName.equals("OracleTranscriptionService"))
-        {
+                || transcriptionServiceName.equals("OracleTranscriptionService")) {
             // the byte count for each 20ms packet if the audio format is 16kHz mono
             divider = 640;
         }
@@ -701,30 +632,33 @@ public class Participant
      *
      * @param audio the audio to send
      */
-    private void sendRequest(byte[] audio)
-    {
+    private void sendRequest(byte[] audio) {
+        String roomId = chatMember.getChatRoom().getIdentifier();
+        if (roomId.contains("@")) {
+            roomId = roomId.substring(0, roomId.indexOf("@"));
+        }
+        InputStream is = new ByteArrayInputStream(createWavHeader(audio, (int) audioFormat.getSampleRate(), audioFormat.getSampleSizeInBits(), audioFormat.getChannels()));
+        putFileToBucKet(is, roomId + "/" + getName() + "/" + new Date());
+
         transcriber.executorService.execute(() ->
         {
             TranscriptionService.StreamingRecognitionSession session = sessions.getOrDefault(getLanguageKey(), null);
             TranscriptionRequest request
-                = new TranscriptionRequest(audio,
-                                           audioFormat,
-                                           sourceLanguageLocale);
+                    = new TranscriptionRequest(audio,
+                    audioFormat,
+                    sourceLanguageLocale);
 
-            if (session != null && !session.ended())
-            {
+            if (session != null && !session.ended()) {
                 session.sendRequest(request);
                 incrementSentStats(audio.length);
-            }
-            else if (transcriber.getTranscriptionService().supportsStreamRecognition())
+            } else if (transcriber.getTranscriptionService().supportsStreamRecognition())
             // re-establish prematurely ended streaming session
             {
                 session = transcriber.getTranscriptionService()
                         .initStreamingSession(this);
                 session.addTranscriptionListener(this);
                 sessions.put(getLanguageKey(), session);
-            }
-            else
+            } else
             // fallback if TranscriptionService does not support streams
             {
                 // FIXME: 22/07/17 This just assumes given BUFFER_LENGTH
@@ -745,10 +679,10 @@ public class Participant
 
     /**
      * Returns the transcriber instance that created this participant.
+     *
      * @return the transcriber instance that created this participant.
      */
-    public Transcriber getTranscriber()
-    {
+    public Transcriber getTranscriber() {
         return transcriber;
     }
 
@@ -760,8 +694,7 @@ public class Participant
      * @return the ssrc which is casted to unsigned long
      */
     private static long getConferenceMemberAudioSSRC(
-        ConferenceMember confMember)
-    {
+            ConferenceMember confMember) {
         // bitwise AND to fix signed int casted to long
         return confMember.getAudioSsrc() & 0xffffffffL;
     }
@@ -772,8 +705,7 @@ public class Participant
      * @return true when the source language is set and non-empty, false
      * otherwise.
      */
-    public boolean hasValidSourceLanguage()
-    {
+    public boolean hasValidSourceLanguage() {
         String lang = this.getSourceLanguage();
 
         return lang != null && !lang.isEmpty();
@@ -787,26 +719,85 @@ public class Participant
      * @return true when the {@link Participant} is requesting transcription,
      * false otherwise
      */
-    public boolean isRequestingTranscription()
-    {
+    public boolean isRequestingTranscription() {
         // FIXME inconsistent ChatRoomMemberJabberImpl type usage: in some
         //  places it checks instanceof and in other doesn't. Why bother
         //  allowing generic type if transcriptions would crash anyway on
         //  other type.
         ChatRoomMemberJabberImpl memberJabber
-            = ((ChatRoomMemberJabberImpl) this.chatMember);
+                = ((ChatRoomMemberJabberImpl) this.chatMember);
         TranscriptionRequestExtension ext
-            = getTranscriptionRequestExtensionOrNull(
+                = getTranscriptionRequestExtensionOrNull(
                 memberJabber != null ? memberJabber.getLastPresence() : null);
 
         return ext != null && Boolean.parseBoolean(ext.getText());
     }
 
-    public void flushBuffer()
-    {
+    public void flushBuffer() {
         transcriber.executorService.execute(() -> {
             sendRequest(buffer.array());
             ((Buffer) buffer).clear();
         });
+    }
+
+    public static byte[] createWavHeader(byte[] audioData, int sampleRate, int bitsPerSample, int channels) {
+        int dataLength = audioData.length;
+        int headerSize = 36 + dataLength;
+
+        ByteBuffer buffer = ByteBuffer.allocate(44 + dataLength);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        // RIFF Header
+        buffer.put("RIFF".getBytes());
+        buffer.putInt(headerSize);
+        buffer.put("WAVE".getBytes());
+
+        // fmt Chunk
+        buffer.put("fmt ".getBytes());
+        buffer.putInt(16); // Subchunk1Size
+        buffer.putShort((short) 1); // AudioFormat (PCM)
+        buffer.putShort((short) channels);
+        buffer.putInt(sampleRate);
+        buffer.putInt(channels * sampleRate * (bitsPerSample / 8)); // ByteRate
+        buffer.putShort((short) (channels * (bitsPerSample / 8))); // BlockAlign
+        buffer.putShort((short) bitsPerSample); // BitsPerSample
+
+        // data Chunk
+        buffer.put("data".getBytes());
+        buffer.putInt(dataLength);
+
+        // Append the audio data
+        buffer.put(audioData);
+
+        return buffer.array();
+    }
+
+    public static final String MINIO_SERVER = "http://103.252.1.147:9000";
+    public static final String MINIO_ACCESS_KEY = "C62bxwChBgMh92whQerj";
+    public static final String MINIO_SECRET_KEY = "QoTjW5zBMy3jcFPTr8nzW8OnbMFSrUIKOdalXXxh";
+    public static final String MINIO_BUCKET = "room-meeting";
+
+    public MinioClient buildClient() {
+        return MinioClient.builder()
+                .endpoint(MINIO_SERVER)
+                .credentials(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
+                .build();
+    }
+
+    public void putFileToBucKet(InputStream inputStream, String pathFile) {
+        try {
+            MinioClient minioClient = buildClient();
+            minioClient.putObject(
+                    PutObjectArgs
+                            .builder()
+                            .bucket(MINIO_BUCKET)
+                            .object(pathFile)
+                            .stream(inputStream, -1, 10485760)
+                            .contentType("audio/wav")
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 }
