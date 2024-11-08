@@ -83,6 +83,8 @@ public class VoskTranscriptionService
      */
     private String websocketUrl;
 
+    private String username;
+
     /**
      * Assigns the websocketUrl to use to websocketUrl by reading websocketUrlConfig;
      */
@@ -107,6 +109,7 @@ public class VoskTranscriptionService
 //        }
 //        websocketUrl = (String) urlObject;
         websocketUrl = "ws://103.252.1.138:18181/asr/" + participant.getRoomId();
+        username = participant.getName();
     }
 
     /**
@@ -245,6 +248,7 @@ public class VoskTranscriptionService
         @OnWebSocketConnect
         public void onConnect(Session session) {
             try {
+                logger.info("opened connection " + websocketUrl);
                 latch.countDown();
                 ObjectMapper objectMapper = new ObjectMapper();
 
@@ -259,7 +263,6 @@ public class VoskTranscriptionService
                 String json = objectMapper.writeValueAsString(clientConfig);
                 session.getRemote().sendString(json);
             } catch (Exception e) {
-                logger.info(e.toString());
                 throw new RuntimeException(e);
             }
             this.session = session;
@@ -277,7 +280,7 @@ public class VoskTranscriptionService
                 JSONObject dataObject = jsonObject.getJSONObject("data");
                 message = dataObject.getString("predict_segment");
 
-                logger.info(message);
+                logger.info(username + message);
             } catch (Exception e) {
             }
 
@@ -382,7 +385,6 @@ public class VoskTranscriptionService
         public void onConnect(Session session) {
             try {
                 latch.countDown();
-                //log.info("opened connection");
                 ObjectMapper objectMapper = new ObjectMapper();
 
                 ClientConfig clientConfig = ClientConfig
