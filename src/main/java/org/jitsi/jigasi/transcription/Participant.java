@@ -17,23 +17,27 @@
  */
 package org.jitsi.jigasi.transcription;
 
-import net.java.sip.communicator.impl.protocol.jabber.*;
-import net.java.sip.communicator.service.protocol.*;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import net.java.sip.communicator.impl.protocol.jabber.ChatRoomMemberJabberImpl;
+import net.java.sip.communicator.service.protocol.ChatRoomMember;
+import net.java.sip.communicator.service.protocol.ConferenceMember;
+import org.jitsi.jigasi.stats.Statistics;
 import org.jitsi.jigasi.util.Util;
-import org.jitsi.xmpp.extensions.jitsimeet.*;
-import org.jitsi.utils.logging.*;
-import org.jivesoftware.smack.packet.*;
-import org.jitsi.jigasi.stats.*;
+import org.jitsi.utils.logging.Logger;
+import org.jitsi.xmpp.extensions.jitsimeet.AvatarIdPacketExtension;
+import org.jitsi.xmpp.extensions.jitsimeet.IdentityPacketExtension;
+import org.jitsi.xmpp.extensions.jitsimeet.TranscriptionRequestExtension;
+import org.jivesoftware.smack.packet.Presence;
 
-import javax.media.format.*;
+import javax.media.format.AudioFormat;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.*;
-import java.util.*;
-import java.util.concurrent.*;
-
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
 
 /**
  * This class describes a participant in a conference whose
@@ -66,7 +70,7 @@ public class Participant
      * 25 results in 20 ms * 25 packets = 500 ms of audio being buffered
      * locally before being send to the TranscriptionService
      */
-    private static final int BUFFER_SIZE = EXPECTED_AUDIO_LENGTH * 25;
+    private static final int BUFFER_SIZE = EXPECTED_AUDIO_LENGTH * 25 * 2;
 
     /**
      * Whether we should buffer locally before sending
@@ -183,6 +187,14 @@ public class Participant
         if (filterAudio) {
             silenceFilter = new SilenceFilter();
         }
+    }
+
+    String getRoomId() {
+        String roomId = chatMember.getChatRoom().getIdentifier();
+        if (roomId.contains("@")) {
+            roomId = roomId.substring(0, roomId.indexOf("@"));
+        }
+        return roomId;
     }
 
     /**
@@ -518,6 +530,7 @@ public class Participant
         }
 
         byte[] audio = (byte[]) buffer.getData();
+        audio = downSample(audio, audioFormat.getSampleRate(), 16000, audioFormat.getChannels(), audioFormat.getSampleSizeInBits());
 
         if (USE_LOCAL_BUFFER) {
             buffer(audio);
@@ -633,12 +646,8 @@ public class Participant
      * @param audio the audio to send
      */
     private void sendRequest(byte[] audio) {
-        String roomId = chatMember.getChatRoom().getIdentifier();
-        if (roomId.contains("@")) {
-            roomId = roomId.substring(0, roomId.indexOf("@"));
-        }
-        InputStream is = new ByteArrayInputStream(createWavHeader(audio, (int) audioFormat.getSampleRate(), audioFormat.getSampleSizeInBits(), audioFormat.getChannels()));
-        putFileToBucKet(is, roomId + "/" + getName() + "/" + new Date());
+        InputStream is = new ByteArrayInputStream(createWavHeader(audio, 16000, audioFormat.getSampleSizeInBits(), audioFormat.getChannels()));
+        putFileToBucKet(is, getRoomId() + "/" + getName() + "/" + new Date());
 
         transcriber.executorService.execute(() ->
         {
@@ -799,5 +808,26 @@ public class Participant
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    public static byte[] downSample(byte[] audioBytes, double originalSampleRate, double targetSampleRate, int channels, int sampleSizeInBits) {
+        int originalSamples = audioBytes.length / (sampleSizeInBits / 8) / channels;
+        int targetSamples = (int) ((targetSampleRate / originalSampleRate) * originalSamples);
+
+        byte[] downsampledBytes = new byte[targetSamples * (sampleSizeInBits / 8) * channels];
+
+        int sampleInterval = (int) (originalSampleRate / targetSampleRate);
+        for (int i = 0, j = 0; i < targetSamples && j < audioBytes.length; i++, j += sampleInterval * (sampleSizeInBits / 8) * channels) {
+            for (int ch = 0; ch < channels; ch++) {
+                int byteIndexOriginal = j + ch * (sampleSizeInBits / 8);
+                int byteIndexTarget = i * (sampleSizeInBits / 8) * channels + ch * (sampleSizeInBits / 8);
+
+                for (int b = 0; b < sampleSizeInBits / 8; b++) {
+                    downsampledBytes[byteIndexTarget + b] = audioBytes[byteIndexOriginal + b];
+                }
+            }
+        }
+
+        return downsampledBytes;
     }
 }
