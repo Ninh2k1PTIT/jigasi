@@ -66,7 +66,7 @@ public class TranscriptionGatewaySession
      * The display name which should be displayed when Jigasi joins the
      * room
      */
-    public final static String DISPLAY_NAME = "Transcriber";
+    public final static String DISPLAY_NAME = "CMEET Assistant";
 
     /**
      * How long the transcriber should wait until really leaving the conference
