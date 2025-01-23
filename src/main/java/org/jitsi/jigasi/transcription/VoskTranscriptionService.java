@@ -280,19 +280,21 @@ public class VoskTranscriptionService
                 JSONObject dataObject = jsonObject.getJSONObject("data");
                 message = dataObject.getString("predict_segment");
 
-                logger.info(username + message);
+                logger.info(username + ": " + message);
             } catch (Exception e) {
             }
 
-            JSONObject obj = new JSONObject("{\"partial\" : \"" + message + "\"}");
-            if (obj.has("partial")) {
-                result = obj.getString("partial");
-            } else {
-                partial = false;
-                result = obj.getString("text");
-            }
+//            JSONObject obj = new JSONObject("{\"partial\" : \"" + message + "\"}");
+//            if (obj.has("partial")) {
+//                result = obj.getString("partial");
+//            } else {
+//                partial = false;
+//                result = obj.getString("text");
+//            }
+		  result = message;
 
-            if (!result.isEmpty() && (!partial || !result.equals(lastResult))) {
+            //if (!result.isEmpty() && (!partial || !result.equals(lastResult))) {
+            if (!result.isEmpty() && !result.equals(lastResult)) {
                 lastResult = result;
                 for (TranscriptionListener l : listeners) {
                     l.notify(new TranscriptionResult(
@@ -345,7 +347,7 @@ public class VoskTranscriptionService
 
         public void end() {
             try {
-                session.getRemote().sendString(EOF_MESSAGE);
+                //session.getRemote().sendString(EOF_MESSAGE);
             } catch (Exception e) {
                 logger.error("Error to finalize websocket connection for participant " + debugName, e);
             }
