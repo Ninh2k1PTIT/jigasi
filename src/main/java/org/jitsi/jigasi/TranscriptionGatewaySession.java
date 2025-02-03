@@ -19,7 +19,6 @@ package org.jitsi.jigasi;
 
 import net.java.sip.communicator.impl.protocol.jabber.*;
 import net.java.sip.communicator.service.protocol.*;
-import net.java.sip.communicator.service.protocol.Message;
 import net.java.sip.communicator.service.protocol.event.*;
 import net.java.sip.communicator.service.protocol.media.*;
 import org.jitsi.utils.concurrent.*;
@@ -38,6 +37,7 @@ import org.jxmpp.stringprep.*;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 
 /**
  * A TranscriptionGatewaySession is able to join a JVB conference and
@@ -84,13 +84,6 @@ public class TranscriptionGatewaySession
      * sending {@link TranscriptionResult} to a {@link ChatRoom}
      */
     private TranscriptHandler handler;
-
-    /**
-     * The ChatRoom of the conference which is going to be transcribed.
-     * We will post messages to the ChatRoom to update users of progress
-     * of transcription
-     */
-    private ChatRoom chatRoom = null;
 
     /**
      * The transcriber managing transcriptions of audio
@@ -213,14 +206,13 @@ public class TranscriptionGatewaySession
         // We can now safely set the Call connecting to the muc room
         // and the ChatRoom of the muc room
         this.jvbCall = jvbConferenceCall;
-        this.chatRoom = super.jvbConference.getJvbRoom();
 
         // If the transcription service is not correctly configured, there is no
         // point in continuing this session, so end it immediately
         if (!service.isConfiguredProperly())
         {
             logger.warn("TranscriptionService is not properly configured");
-            sendMessageToRoom("Transcriber is not properly " +
+            super.jvbConference.sendMessageToRoom("Transcriber is not properly " +
                 "configured. Contact the service administrators and let them " +
                 "know! I will now leave.");
             jvbConference.stop();
@@ -260,7 +252,7 @@ public class TranscriptionGatewaySession
 
         if (welcomeMessage.length() > 0)
         {
-            sendMessageToRoom(welcomeMessage.toString());
+            super.jvbConference.sendMessageToRoom(welcomeMessage.toString());
         }
 
         try
@@ -362,26 +354,32 @@ public class TranscriptionGatewaySession
      **/
     private void flushParticipantTranscriptionBufferOnMute(ChatRoomMember chatMember, Presence presence)
     {
-        boolean hasMuted = false;
-        StandardExtensionElement sourceInfo = (StandardExtensionElement) presence.getExtensionElement("SourceInfo",
-                "jabber:client");
+        final AtomicBoolean muted = new AtomicBoolean(false);
+        StandardExtensionElement sourceInfo =
+            (StandardExtensionElement) presence.getExtensionElement("SourceInfo", "jabber:client");
         if (sourceInfo != null)
         {
             String mutedText = sourceInfo.getText();
             JSONParser jsonParser = new JSONParser();
             try
             {
-                JSONObject jsonObject = (JSONObject) jsonParser.parse(mutedText);
-                String participantKey = jsonObject.keySet().toArray()[0].toString();
-                JSONObject mutedJsonObject = (JSONObject) jsonParser.parse(jsonObject.get(participantKey).toString());
-                hasMuted = (boolean) mutedJsonObject.get("muted");
+                HashMap<String, JSONObject> jsonObject = (HashMap<String, JSONObject>) jsonParser.parse(mutedText);
+                jsonObject.forEach((key, value) ->
+                {
+                    // check only audio source info
+                    if (key.endsWith("a0"))
+                    {
+                        Object isMuted = value.get("muted");
+                        muted.set(isMuted != null && (boolean) isMuted);
+                    }
+                });
             }
             catch (Exception e)
             {
                 logger.error(this.callContext + " Error parsing presence while checking if participant is muted", e);
             }
 
-            if (hasMuted)
+            if (muted.get())
             {
                 this.transcriber.flushParticipantAudioBuffer(getParticipantIdentifier(chatMember));
             }
@@ -637,6 +635,13 @@ public class TranscriptionGatewaySession
      */
     private List<ChatRoomMember> getCurrentChatRoomMembers()
     {
+        if (super.jvbConference == null)
+        {
+            return null;
+        }
+
+        ChatRoom chatRoom = super.jvbConference.getJvbRoom();
+
         return chatRoom == null ? null : chatRoom.getMembers();
     }
 
@@ -710,32 +715,6 @@ public class TranscriptionGatewaySession
         return getConferenceMemberResourceID(conferenceMember);
     }
 
-
-    /**
-     * Send a message to the muc room
-     *
-     * @param messageString the message to send
-     */
-    private void sendMessageToRoom(String messageString)
-    {
-        if (chatRoom == null)
-        {
-            logger.error("Cannot send message as chatRoom is null");
-            return;
-        }
-
-        Message message = chatRoom.createMessage(messageString);
-        try
-        {
-            chatRoom.sendMessage(message);
-            logger.debug("Sending message: \"" + messageString + "\"");
-        }
-        catch (OperationFailedException e)
-        {
-            logger.warn("Failed to send message " + messageString, e);
-        }
-    }
-
     /**
      * Send a {@link TranscriptionResult} to the {@link ChatRoom}
      *
@@ -743,7 +722,7 @@ public class TranscriptionGatewaySession
      */
     private void sendTranscriptionResultToRoom(TranscriptionResult result)
     {
-        handler.publishTranscriptionResult(this.chatRoom, result);
+        handler.publishTranscriptionResult(super.jvbConference, result);
     }
 
     /**
@@ -753,7 +732,7 @@ public class TranscriptionGatewaySession
      */
     private void sendTranslationResultToRoom(TranslationResult result)
     {
-        handler.publishTranslationResult(this.chatRoom, result);
+        handler.publishTranslationResult(super.jvbConference, result);
     }
 
     @Override

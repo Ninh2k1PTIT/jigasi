@@ -29,6 +29,8 @@ import org.jitsi.jigasi.constant.EventWsAIEnum;
 import org.jitsi.jigasi.transcription.config.ClientConfig;
 import org.jitsi.jigasi.transcription.config.DataClientConfig;
 import org.json.*;
+import org.json.simple.*;
+import org.json.simple.parser.*;
 import org.jitsi.jigasi.*;
 import org.jitsi.utils.logging.*;
 
@@ -84,6 +86,7 @@ public class VoskTranscriptionService
     private String websocketUrl;
 
     private String username;
+    private final JSONParser jsonParser = new JSONParser();
 
     /**
      * Assigns the websocketUrl to use to websocketUrl by reading websocketUrlConfig;
@@ -269,20 +272,62 @@ public class VoskTranscriptionService
         }
 
         @OnWebSocketMessage
-        public void onMessage(String msg) {
+// <<<<<<< HEAD
+//         public void onMessage(String msg) {
+//             boolean partial = true;
+//             String result = "";
+//             if (logger.isDebugEnabled())
+//                 logger.debug(debugName + "Recieved response: " + msg);
+//             JSONObject jsonObject = new JSONObject(msg);
+//             String message = "";
+//             try {
+//                 JSONObject dataObject = jsonObject.getJSONObject("data");
+//                 message = dataObject.getString("predict_segment");
+
+//                 logger.info(username + ": " + message);
+//             } catch (Exception e) {
+// =======
+        public void onMessage(String msg)
+        {
+            try
+            {
+                this.onMessageInternal(msg);
+            }
+            catch (ParseException e)
+            {
+                logger.error("Error parsing message: " + msg, e);
+            }
+        }
+
+        private void onMessageInternal(String msg)
+            throws ParseException
+        {
+            if (logger.isDebugEnabled())
+            {
+                logger.debug(debugName + "Received response: " + msg);
+            }
+
             boolean partial = true;
             String result = "";
-            if (logger.isDebugEnabled())
-                logger.debug(debugName + "Recieved response: " + msg);
+//             JSONObject obj = (JSONObject)jsonParser.parse(msg);
+//             if (obj.containsKey("partial"))
+//             {
+//                 result = (String)obj.get("partial");
+//             }
+//             else
+//             {
+//                 partial = false;
+//                 result = (String)obj.get("text");
+// >>>>>>> 995a8b2d458ef624e29ac58e8214912ab9c4b0f8
             JSONObject jsonObject = new JSONObject(msg);
             String message = "";
-            try {
-                JSONObject dataObject = jsonObject.getJSONObject("data");
-                message = dataObject.getString("predict_segment");
+            // try {
+            JSONObject dataObject = jsonObject.getJSONObject("data");
+            message = dataObject.getString("predict_segment");
 
-                logger.info(username + ": " + message);
-            } catch (Exception e) {
-            }
+            logger.info(username + ": " + message);
+            // } catch (Exception e) {
+            // }
 
 //            JSONObject obj = new JSONObject("{\"partial\" : \"" + message + "\"}");
 //            if (obj.has("partial")) {
@@ -291,7 +336,7 @@ public class VoskTranscriptionService
 //                partial = false;
 //                result = obj.getString("text");
 //            }
-		  result = message;
+		    result = message;
 
             //if (!result.isEmpty() && (!partial || !result.equals(lastResult))) {
             if (!result.isEmpty() && !result.equals(lastResult)) {
