@@ -28,7 +28,7 @@ import org.eclipse.jetty.websocket.client.*;
 import org.jitsi.jigasi.constant.EventWsAIEnum;
 import org.jitsi.jigasi.transcription.config.ClientConfig;
 import org.jitsi.jigasi.transcription.config.DataClientConfig;
-import org.json.*;
+//import org.json.*;
 import org.json.simple.*;
 import org.json.simple.parser.*;
 import org.jitsi.jigasi.*;
@@ -319,11 +319,11 @@ public class VoskTranscriptionService
 //                 partial = false;
 //                 result = (String)obj.get("text");
 // >>>>>>> 995a8b2d458ef624e29ac58e8214912ab9c4b0f8
-            JSONObject jsonObject = new JSONObject(msg);
+            JSONObject jsonObject = (JSONObject)jsonParser.parse(msg);
             String message = "";
             // try {
-            JSONObject dataObject = jsonObject.getJSONObject("data");
-            message = dataObject.getString("predict_segment");
+            JSONObject dataObject = (JSONObject)jsonObject.get("data");
+            message = (String) dataObject.get("predict_segment");
 
             logger.info(username + ": " + message);
             // } catch (Exception e) {
