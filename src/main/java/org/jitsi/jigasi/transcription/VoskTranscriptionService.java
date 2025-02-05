@@ -273,61 +273,20 @@ public class VoskTranscriptionService
 
         @OnWebSocketMessage
 // <<<<<<< HEAD
-//         public void onMessage(String msg) {
-//             boolean partial = true;
-//             String result = "";
-//             if (logger.isDebugEnabled())
-//                 logger.debug(debugName + "Recieved response: " + msg);
-//             JSONObject jsonObject = new JSONObject(msg);
-//             String message = "";
-//             try {
-//                 JSONObject dataObject = jsonObject.getJSONObject("data");
-//                 message = dataObject.getString("predict_segment");
-
-//                 logger.info(username + ": " + message);
-//             } catch (Exception e) {
-// =======
-        public void onMessage(String msg)
-        {
-            try
-            {
-                this.onMessageInternal(msg);
-            }
-            catch (ParseException e)
-            {
-                logger.error("Error parsing message: " + msg, e);
-            }
-        }
-
-        private void onMessageInternal(String msg)
-            throws ParseException
-        {
-            if (logger.isDebugEnabled())
-            {
-                logger.debug(debugName + "Received response: " + msg);
-            }
-
+        public void onMessage(String msg) {
             boolean partial = true;
             String result = "";
-//             JSONObject obj = (JSONObject)jsonParser.parse(msg);
-//             if (obj.containsKey("partial"))
-//             {
-//                 result = (String)obj.get("partial");
-//             }
-//             else
-//             {
-//                 partial = false;
-//                 result = (String)obj.get("text");
-// >>>>>>> 995a8b2d458ef624e29ac58e8214912ab9c4b0f8
+            if (logger.isDebugEnabled())
+                logger.debug(debugName + "Recieved response: " + msg);
             JSONObject jsonObject = new JSONObject(msg);
             String message = "";
-            // try {
-            JSONObject dataObject = jsonObject.getJSONObject("data");
-            message = dataObject.getString("predict_segment");
+            try {
+                JSONObject dataObject = jsonObject.getJSONObject("data");
+                message = dataObject.getString("predict_segment");
 
-            logger.info(username + ": " + message);
-            // } catch (Exception e) {
-            // }
+                logger.info(username + ": " + message);
+            } catch (Exception e) {
+            }
 
 //            JSONObject obj = new JSONObject("{\"partial\" : \"" + message + "\"}");
 //            if (obj.has("partial")) {
