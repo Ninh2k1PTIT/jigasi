@@ -28,9 +28,9 @@ import org.eclipse.jetty.websocket.client.*;
 import org.jitsi.jigasi.constant.EventWsAIEnum;
 import org.jitsi.jigasi.transcription.config.ClientConfig;
 import org.jitsi.jigasi.transcription.config.DataClientConfig;
-//import org.json.*;
-import org.json.simple.*;
-import org.json.simple.parser.*;
+import org.json.*;
+// import org.json.simple.*;
+// import org.json.simple.parser.*;
 import org.jitsi.jigasi.*;
 import org.jitsi.utils.logging.*;
 
@@ -86,7 +86,7 @@ public class VoskTranscriptionService
     private String websocketUrl;
 
     private String username;
-    private final JSONParser jsonParser = new JSONParser();
+    // private final JSONParser jsonParser = new JSONParser();
 
     /**
      * Assigns the websocketUrl to use to websocketUrl by reading websocketUrlConfig;
@@ -319,11 +319,11 @@ public class VoskTranscriptionService
 //                 partial = false;
 //                 result = (String)obj.get("text");
 // >>>>>>> 995a8b2d458ef624e29ac58e8214912ab9c4b0f8
-            JSONObject jsonObject = (JSONObject)jsonParser.parse(msg);
+            JSONObject jsonObject = new JSONObject(msg);
             String message = "";
             // try {
-            JSONObject dataObject = (JSONObject)jsonObject.get("data");
-            message = (String) dataObject.get("predict_segment");
+            JSONObject dataObject = jsonObject.getJSONObject("data");
+            message = dataObject.getString("predict_segment");
 
             logger.info(username + ": " + message);
             // } catch (Exception e) {
