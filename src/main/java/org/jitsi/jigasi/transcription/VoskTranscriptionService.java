@@ -29,8 +29,6 @@ import org.jitsi.jigasi.constant.EventWsAIEnum;
 import org.jitsi.jigasi.transcription.config.ClientConfig;
 import org.jitsi.jigasi.transcription.config.DataClientConfig;
 import org.json.*;
-// import org.json.simple.*;
-// import org.json.simple.parser.*;
 import org.jitsi.jigasi.*;
 import org.jitsi.utils.logging.*;
 
@@ -86,7 +84,6 @@ public class VoskTranscriptionService
     private String websocketUrl;
 
     private String username;
-    // private final JSONParser jsonParser = new JSONParser();
 
     /**
      * Assigns the websocketUrl to use to websocketUrl by reading websocketUrlConfig;
@@ -272,7 +269,6 @@ public class VoskTranscriptionService
         }
 
         @OnWebSocketMessage
-// <<<<<<< HEAD
         public void onMessage(String msg) {
             boolean partial = true;
             String result = "";
@@ -295,7 +291,7 @@ public class VoskTranscriptionService
 //                partial = false;
 //                result = obj.getString("text");
 //            }
-		    result = message;
+		  result = message;
 
             //if (!result.isEmpty() && (!partial || !result.equals(lastResult))) {
             if (!result.isEmpty() && !result.equals(lastResult)) {
