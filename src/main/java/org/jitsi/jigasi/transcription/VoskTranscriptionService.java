@@ -308,7 +308,7 @@ public class VoskTranscriptionService
                             transcriptionTag,
                             1.0,
                             new TranscriptionAlternative(result)));
-		    break;
+//		    break;
                 }
             }
 
