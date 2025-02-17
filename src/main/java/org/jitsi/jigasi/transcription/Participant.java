@@ -34,6 +34,7 @@ import javax.media.format.AudioFormat;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -807,6 +808,26 @@ public class Participant
             );
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public void putFileTextToBucket(String textContent, String pathFile) {
+        try {
+            MinioClient minioClient = buildClient();
+            byte[] textData = textContent.getBytes(StandardCharsets.UTF_8);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(textData);
+
+            minioClient.putObject(
+                    PutObjectArgs
+                            .builder()
+                            .bucket(MINIO_BUCKET)
+                            .object(pathFile)
+                            .stream(inputStream, textData.length, -1)
+                            .contentType("text/plain") // MIME type cho file .txt
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Error uploading TXT file: " + e.getMessage());
         }
     }
 
