@@ -781,10 +781,10 @@ public class Participant
         return buffer.array();
     }
 
-    public static final String MINIO_SERVER = "http://10.1.6.11:9000";
-    public static final String MINIO_ACCESS_KEY = "8JS6nYYaFvuIbbWkpBwj";
-    public static final String MINIO_SECRET_KEY = "mWYpMkHkKR87fTlakF4n2ss7gUACuymNJJC3kLbA";
-    public static final String MINIO_BUCKET = "room-meeting";
+    public static final String MINIO_SERVER = "http://10.2.6.25:9015";
+    public static final String MINIO_ACCESS_KEY = "gR8zCgD0Ld0wMZkAGuei";
+    public static final String MINIO_SECRET_KEY = "jWLIWZqrVdEZ13phmrqNQX53IqHssNacn0vaJpXv";
+    public static final String MINIO_BUCKET = "audio-meeting";
 
     public MinioClient buildClient() {
         return MinioClient.builder()
