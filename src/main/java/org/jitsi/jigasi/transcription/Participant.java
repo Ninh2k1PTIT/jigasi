@@ -786,7 +786,7 @@ public class Participant
     public static final String MINIO_ACCESS_KEY = "gR8zCgD0Ld0wMZkAGuei";
     public static final String MINIO_SECRET_KEY = "jWLIWZqrVdEZ13phmrqNQX53IqHssNacn0vaJpXv";
     public static final String MINIO_BUCKET = "audio-meeting";
-
+    public static final String MINIO_BUCKET_TXT = "txt-meeting";
     public MinioClient buildClient() {
         return MinioClient.builder()
                 .endpoint(MINIO_SERVER)
@@ -820,7 +820,7 @@ public class Participant
             minioClient.putObject(
                     PutObjectArgs
                             .builder()
-                            .bucket(MINIO_BUCKET)
+                            .bucket(MINIO_BUCKET_TXT)
                             .object(pathFile)
                             .stream(inputStream, textData.length, -1)
                             .contentType("text/plain") // MIME type cho file .txt
