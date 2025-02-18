@@ -34,6 +34,7 @@ import javax.media.format.AudioFormat;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -545,6 +546,7 @@ public class Participant
         if (logger.isDebugEnabled())
             logger.debug(result);
         transcriber.notify(result);
+        this.putFileTextToBucket(result.getName()+ ": " + result.getAlternatives().iterator().next().getTranscription() , result.getParticipant().getRoomId() + "/" + result.getName() + "/" + new Date());
     }
 
     @Override
@@ -784,8 +786,8 @@ public class Participant
     public static final String MINIO_SERVER = "http://10.2.6.25:9015";
     public static final String MINIO_ACCESS_KEY = "gR8zCgD0Ld0wMZkAGuei";
     public static final String MINIO_SECRET_KEY = "jWLIWZqrVdEZ13phmrqNQX53IqHssNacn0vaJpXv";
-    public static final String MINIO_BUCKET = "audio-meeting";
-
+    public static final String MINIO_BUCKET = "prod-audio-meeting";
+    public static final String MINIO_BUCKET_TXT = "prod-txt-meeting";
     public MinioClient buildClient() {
         return MinioClient.builder()
                 .endpoint(MINIO_SERVER)
@@ -807,6 +809,26 @@ public class Participant
             );
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public void putFileTextToBucket(String textContent, String pathFile) {
+        try {
+            MinioClient minioClient = buildClient();
+            byte[] textData = textContent.getBytes(StandardCharsets.UTF_8);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(textData);
+            logger.info("Chuẩn bị update");
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(MINIO_BUCKET_TXT)
+                            .object(pathFile)
+                            .stream(inputStream, textData.length, -1)
+                            .contentType("text/plain") // MIME type cho file .txt
+                            .build()
+            );
+            logger.info("Upload: " + pathFile);
+        } catch (Exception e) {
+            throw new RuntimeException("Error uploading TXT file: " + e.getMessage());
         }
     }
 
