@@ -190,12 +190,6 @@ public class LocalTxtTranscriptHandler
         String name = result.getName();
         String transcription = result.getAlternatives().iterator()
             .next().getTranscription();
-        Participant p = result.getParticipant();
-//        result.getParticipant().putFileTextToBucket(name + ": " + transcription,result.getParticipant().getRoomId() + "/" + name + "/" + new Date());
-        if(p != null){
-            p.putFileTextToBucket(name + ": " + transcription, p.getRoomId() + "/" + name + "/" + new Date());
-            logger.info("putFileTxt");
-        }
         jvbConference.sendMessageToRoom(name + ": " + transcription);
     }
 
