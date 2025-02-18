@@ -19,6 +19,7 @@ package org.jitsi.jigasi.transcription;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import lombok.extern.slf4j.Slf4j;
 import net.java.sip.communicator.impl.protocol.jabber.ChatRoomMemberJabberImpl;
 import net.java.sip.communicator.service.protocol.ChatRoomMember;
 import net.java.sip.communicator.service.protocol.ConferenceMember;
@@ -48,6 +49,7 @@ import java.util.concurrent.ExecutorService;
  * @author Nik Vaessen
  * @author Boris Grozev
  */
+@Slf4j
 public class Participant
         implements TranscriptionListener {
     /**
@@ -816,7 +818,7 @@ public class Participant
             MinioClient minioClient = buildClient();
             byte[] textData = textContent.getBytes(StandardCharsets.UTF_8);
             ByteArrayInputStream inputStream = new ByteArrayInputStream(textData);
-
+            logger.info("Chuẩn bị update");
             minioClient.putObject(
                     PutObjectArgs
                             .builder()
@@ -826,6 +828,7 @@ public class Participant
                             .contentType("text/plain") // MIME type cho file .txt
                             .build()
             );
+            logger.info("Upload thành công: " + pathFile);
         } catch (Exception e) {
             throw new RuntimeException("Error uploading TXT file: " + e.getMessage());
         }
